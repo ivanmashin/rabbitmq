@@ -5,21 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4ee7d701-4c7c-47fa-af58-a4c4b591629e" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/rabbitmq.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backoff.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/connection.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/connection_test.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/context.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/publisher.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/publisher_test.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/router.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/router_test.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/server.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/server_test.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
