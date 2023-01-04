@@ -9,7 +9,7 @@ Wrapper over golang amqp library that simplifies consumer and producer usage wit
 ## Installation
 
 ```sh
-go get https://github.com/MashinIvan/rabbitmq
+go get github.com/MashinIvan/rabbitmq
 ```
 
 <!-- USAGE EXAMPLES -->
