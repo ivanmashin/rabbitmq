@@ -22,5 +22,3 @@ See [examples](https://github.com/MashinIvan/rabbitmq/tree/main/examples)
 ## License
 
 Licensed under the [MIT License](https://github.com/MashinIvan/rabbitmq/blob/main/LICENSE)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
