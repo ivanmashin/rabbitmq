@@ -8,6 +8,7 @@ import (
 	"sync"
 )
 
+// NewServer constructs a new *Server.
 func NewServer(conn *Connection, router *Router) *Server {
 	return &Server{
 		Conn:                conn,
@@ -18,6 +19,7 @@ func NewServer(conn *Connection, router *Router) *Server {
 	}
 }
 
+// Server is used to accept messages from rabbitmq server and route then to controllers registered in Router.
 type Server struct {
 	Conn *Connection
 
@@ -28,6 +30,8 @@ type Server struct {
 	waitCh    chan struct{}
 }
 
+// ListenAndServe blocks on listening for deliveries. It creates a separate channel for each worker in every RouterGroup.
+// Channel is then used to receive messages and route then to RouterGroup controllers.
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	for {
 		log.Println("RabbitMQServer ListenAndServe started listening")
@@ -80,6 +84,8 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	}
 }
 
+// Shutdown performs graceful shutdown of a Server. When a server is shut down, first every channel is closed for new deliveries.
+// Then Server waits until either a context is cancelled, or every worker stops processing its message.
 func (s *Server) Shutdown(ctx context.Context) error {
 	defer s.Conn.Close()
 

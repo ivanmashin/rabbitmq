@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"context"
+	"github.com/MashinIvan/rabbitmq/pkg/backoff"
 	"github.com/streadway/amqp"
 	"os/exec"
 	"testing"
@@ -31,7 +32,7 @@ func TestPublisher_Publish(t *testing.T) {
 	}
 
 	// publisher
-	publisher, err := NewPublisher(conn, exchangeParams, WithQueueDeclaration(queueParams, "test.foo"), WithRetries(NewDefaultSigmoidBackoff(), 10))
+	publisher, err := NewPublisher(conn, exchangeParams, WithQueueDeclaration(queueParams, "test.foo"), WithRetries(backoff.NewDefaultSigmoidBackoff(), 10))
 	if err != nil {
 		t.Error(err)
 	}
@@ -59,7 +60,7 @@ func TestPublisher_Broken(t *testing.T) {
 		t.Error(err)
 	}
 
-	publisher, err := NewPublisher(conn, exchangeParams, WithQueueDeclaration(queueParams, "test.foo"), WithRetries(NewDefaultSigmoidBackoff(), 10))
+	publisher, err := NewPublisher(conn, exchangeParams, WithQueueDeclaration(queueParams, "test.foo"), WithRetries(backoff.NewDefaultSigmoidBackoff(), 10))
 	if err != nil {
 		t.Error(err)
 	}
@@ -129,7 +130,7 @@ func TestPublisher_Reconnect(t *testing.T) {
 	}
 
 	// publisher
-	publisher, err := NewPublisher(conn, exchangeParams, WithQueueDeclaration(queueParams, "test.foo"), WithRetries(NewDefaultSigmoidBackoff(), 10))
+	publisher, err := NewPublisher(conn, exchangeParams, WithQueueDeclaration(queueParams, "test.foo"), WithRetries(backoff.NewDefaultSigmoidBackoff(), 10))
 	if err != nil {
 		t.Error(err)
 	}

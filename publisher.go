@@ -2,11 +2,16 @@ package rabbitmq
 
 import (
 	"context"
+	"errors"
+	"github.com/MashinIvan/rabbitmq/pkg/backoff"
 	"github.com/streadway/amqp"
 	"log"
 	"sync/atomic"
 )
 
+var ErrTooManyFailures = errors.New("too many consecutive failures")
+
+// NewPublisher creates a new *Publisher. Publisher is used to declare exchange and publish messages to this exchange.
 func NewPublisher(connection *Connection, exchangeParams ExchangeParams, opts ...PublisherOption) (*Publisher, error) {
 	p := &Publisher{
 		Conn:           connection,
@@ -29,14 +34,18 @@ func NewPublisher(connection *Connection, exchangeParams ExchangeParams, opts ..
 
 type PublisherOption func(p *Publisher)
 
-func WithRetries(backoff Backoff, consecutiveFailuresAllowed uint32) PublisherOption {
+// WithRetries makes Publisher.Publish retry on failure with a backoff. consecutiveFailuresBeforeBreak is used as a
+// simple circuit breaker. When consecutiveFailuresBeforeBreak is greater than 0 and reached, Publisher.Publish will return ErrTooManyFailures
+// and Publisher.Broken will return true.
+func WithRetries(backoff backoff.Backoff, consecutiveFailuresBeforeBreak uint32) PublisherOption {
 	return func(p *Publisher) {
 		p.retryPublish = true
 		p.backoff = backoff
-		p.consecutiveErrorsAllowed = consecutiveFailuresAllowed
+		p.consecutiveFailuresAllowed = consecutiveFailuresBeforeBreak
 	}
 }
 
+// WithQueueDeclaration makes publisher declare a queue on rabbitmq server and bind it to Publisher exchange by bindingKey parameter.
 func WithQueueDeclaration(queueParams QueueParams, bindingKey string) PublisherOption {
 	return func(p *Publisher) {
 		p.declareQueue = true
@@ -45,6 +54,9 @@ func WithQueueDeclaration(queueParams QueueParams, bindingKey string) PublisherO
 	}
 }
 
+// Publisher is used to publish messages to single exchange.
+// On construction, publisher creates a new channel and declares an exchange. It features an option to declare a queue as well.
+// It features an option to retry publish attempts on failures.
 type Publisher struct {
 	Conn *Connection
 	ch   *amqp.Channel
@@ -55,13 +67,18 @@ type Publisher struct {
 	bindingKey     string
 
 	retryPublish bool
-	backoff      Backoff
+	backoff      backoff.Backoff
 
-	consecutiveErrors        atomic.Uint32
-	consecutiveErrorsAllowed uint32
+	consecutivePublishFailures atomic.Uint32
+	consecutiveFailuresAllowed uint32
 }
 
+// Publish sends a message to rabbitmq server.
 func (p *Publisher) Publish(ctx context.Context, key string, mandatory, immediate bool, msg amqp.Publishing) error {
+	if p.Broken() {
+		return ErrTooManyFailures
+	}
+
 	err := p.ch.Publish(p.exchangeParams.Name, key, mandatory, immediate, msg)
 	if err != nil && !p.retryPublish {
 		return err
@@ -79,11 +96,11 @@ func (p *Publisher) Publish(ctx context.Context, key string, mandatory, immediat
 				return err
 			}
 
-			p.consecutiveErrors.Add(1)
+			p.consecutivePublishFailures.Add(1)
 			continue
 		}
 
-		p.consecutiveErrors.Store(0)
+		p.consecutivePublishFailures.Store(0)
 		log.Printf("RabbitMQPublisher Publish to %s %s ok\n", p.exchangeParams.Name, key)
 		return nil
 	}
@@ -91,15 +108,15 @@ func (p *Publisher) Publish(ctx context.Context, key string, mandatory, immediat
 	//err := p.ch.Publish(p.exchangeParams.Name, key, mandatory, immediate, msg)
 }
 
-// Broken возвращает true в случае, если последовательное количество ошибок Publish > consecutiveFailuresAllowed
+// Broken is true, if consecutive publish failures is more than Publisher.consecutiveFailuresAllowed
 func (p *Publisher) Broken() bool {
-	return p.consecutiveErrors.Load() > p.consecutiveErrorsAllowed
+	return p.consecutivePublishFailures.Load() > p.consecutiveFailuresAllowed
 }
 
 func (p *Publisher) attemptPublish(key string, mandatory, immediate bool, msg amqp.Publishing) error {
 	err := p.ch.Publish(p.exchangeParams.Name, key, mandatory, immediate, msg)
 	if err != nil {
-		p.consecutiveErrors.Add(1)
+		p.consecutivePublishFailures.Add(1)
 		return err
 	}
 

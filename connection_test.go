@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"fmt"
+	"github.com/MashinIvan/rabbitmq/pkg/backoff"
 	"github.com/streadway/amqp"
 	"os"
 	"os/exec"
@@ -19,14 +20,12 @@ func newConn() (*Connection, error) {
 		os.Getenv("PORT"),
 	)
 
-	conn, err := amqp.Dial(connUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	connection := NewConnection(conn, func() (*amqp.Connection, error) {
-		return amqp.Dial(connUrl)
-	})
+	connection, err := NewConnection(
+		func() (*amqp.Connection, error) {
+			return amqp.Dial(connUrl)
+		},
+		backoff.NewDefaultSigmoidBackoff(),
+	)
 	if err != nil {
 		return nil, err
 	}

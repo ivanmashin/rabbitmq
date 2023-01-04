@@ -2,42 +2,60 @@ package rabbitmq
 
 import (
 	"context"
+	"github.com/MashinIvan/rabbitmq/pkg/backoff"
 	"github.com/streadway/amqp"
 	"log"
 	"sync"
 	"sync/atomic"
 )
 
+// ConnectionFactory is a wrapper used for reconnecting to rabbitmq server.
 type ConnectionFactory func() (*amqp.Connection, error)
 
-func NewConnection(conn *amqp.Connection, factory ConnectionFactory) *Connection {
+// NewConnection creates a new *Connection as in NewConnectionWithContext, but uses context.Background.
+func NewConnection(factory ConnectionFactory, backoff backoff.Backoff) (*Connection, error) {
+	return NewConnectionWithContext(context.Background(), factory, backoff)
+}
+
+// NewConnectionWithContext accepts connection factory and a backoff returning *Connection.
+// When amqp connection is closed unexpectedly, Connection attempts to reconnect with backoff.
+// Context is passed to backoff to cancel reconnection.
+func NewConnectionWithContext(ctx context.Context, factory ConnectionFactory, backoff backoff.Backoff) (*Connection, error) {
+	conn, err := factory()
+	if err != nil {
+		return nil, err
+	}
+
 	c := &Connection{
 		Connection:        conn,
 		connectionFactory: factory,
 		alive:             atomic.Bool{},
-		backoff:           NewDefaultSigmoidBackoff(),
+		backoff:           backoff,
 		notifyClose:       make([]chan error, 0),
 		notifyReconnect:   make([]chan error, 0),
 		mu:                sync.RWMutex{},
 	}
 
 	c.alive.Store(true)
-	go c.watchReconnect(context.Background())
+	go c.watchReconnect(ctx)
 
-	return c
+	return c, nil
 }
 
+// Connection represents a wrapper over amqp.Connection for use with Server and Publisher.
 type Connection struct {
 	*amqp.Connection
 	connectionFactory func() (*amqp.Connection, error)
 	alive             atomic.Bool
 	reconnecting      atomic.Bool
-	backoff           Backoff
+	backoff           backoff.Backoff
 	notifyClose       []chan error
 	notifyReconnect   []chan error
 	mu                sync.RWMutex
 }
 
+// Close closes underlying *amqp.Connection. It notifies all subscribers about closure with nil error.
+// Subscribers can subscribe to Close event with NotifyClose.
 func (c *Connection) Close() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -55,6 +73,8 @@ func (c *Connection) Close() {
 	}
 }
 
+// NotifyClose registers a new subscriber for closure events.
+// When a connection is closed, subscriber will receive a notification with closure error.
 func (c *Connection) NotifyClose(ch chan error) chan error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -63,6 +83,9 @@ func (c *Connection) NotifyClose(ch chan error) chan error {
 	return ch
 }
 
+// NotifyReconnect registers a new subscriber for reconnect events.
+// When underlying amqp.Connection is shutdown unexpectedly and reconnection is finished, subscriber will receive a notification with reconnect status.
+// Reconnect can be finished with an error if canceled by context.
 func (c *Connection) NotifyReconnect(ch chan error) chan error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -71,6 +94,7 @@ func (c *Connection) NotifyReconnect(ch chan error) chan error {
 	return ch
 }
 
+// IsAlive states whether underlying amqp.Connection is closed.
 func (c *Connection) IsAlive() bool {
 	return c.alive.Load()
 }

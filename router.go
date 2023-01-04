@@ -5,15 +5,19 @@ import (
 	"strings"
 )
 
+// NewRouter creates and returns a new Router.
 func NewRouter() *Router {
 	return &Router{queuesGroups: make([]*RouterGroup, 0)}
 }
 
+// Router represents the level of message routing within the queue.
+// It registers multiple RouterGroup to be used by Server for exchange and queue declarations and queue bindings.
 type Router struct {
 	queuesGroups []*RouterGroup
 }
 
-// Group обобщает транспорт consumer`а, объединяя в себе декларацию и параметры exchangeParams и queueParams
+// Group accepts generalized transport parameters and constructs RouterGroup.
+// It is then used by Server to route messages from defined group queue to controllers based on queue routing.
 func (r *Router) Group(exchange ExchangeParams, queue QueueParams, qos QualityOfService, consumer ConsumerParams, opts ...GroupOption) *RouterGroup {
 	group := &RouterGroup{
 		engine:              NewTopicRouterEngine(),
@@ -35,18 +39,21 @@ func (r *Router) Group(exchange ExchangeParams, queue QueueParams, qos QualityOf
 
 type GroupOption func(g *RouterGroup)
 
+// WithNumWorkers informs Server to use multiple amqp.Channel for that particular routing group.
 func WithNumWorkers(workers int) GroupOption {
 	return func(g *RouterGroup) {
 		g.workers = workers
 	}
 }
 
+// WithRouterEngine defines what engine will be used to route delivered message to different controllers.
 func WithRouterEngine(engine RouterEngine) GroupOption {
 	return func(g *RouterGroup) {
 		g.engine = engine
 	}
 }
 
+// RouterGroup generalized consumer's transport, it unites exchange and queue as a single transport line
 type RouterGroup struct {
 	engine RouterEngine
 
@@ -58,23 +65,32 @@ type RouterGroup struct {
 	bindings            []string
 }
 
-// Route регистрирует маршрутизацию сообщений для конкретной очереди в рамках одной RouterGroup
-// При чтении из очереди сообщения будут маршрутизироваться в соответствующие контроллеры по параметру RoutingKey
+// Route registers message routing for one particular queue defined in RouterGroup.
+// When receiving messages in a queue, deliveries will be routed to matched controllers based on routingKey parameter.
+// routingKey parameter is also used by Server to bind RouterGroup queue to corresponding RouterGroup exchange.
+// controllers' chain will be executed for every matched route.
 func (g *RouterGroup) Route(routingKey string, controllers ...ControllerFunc) *RouterGroup {
 	g.bindings = append(g.bindings, routingKey)
 	g.engine.AddBinding(routingKey, controllers...)
 	return g
 }
 
+// RouterEngine represents message routing logic within a queue.
+// When a message is delivered to a queue, RouterEngine is used to route messages to different controllers based on specific pattern.
 type RouterEngine interface {
-	// AddBinding добавляет маршрутизацию контроллеров в роутер
+
+	// AddBinding adds routing from bindingKey to controllers
+	// When used by a Server, Server binds RouterGroup queue to RouterGroup exchange on that bindingKey
 	AddBinding(bindingKey string, controllers ...ControllerFunc)
-	// Route подбирает все подходящие контроллеры по настроенным параметрам маршрутизации
+
+	// Route selects all suitable controllers according to the configured routing parameters
 	Route(routingKey string) []ControllerFunc
 }
 
+// ControllerFunc represents controller type used to process delivered messages.
 type ControllerFunc func(ctx *DeliveryContext)
 
+// ExchangeParams generalizes amqp exchange settings
 type ExchangeParams struct {
 	Name       string
 	Kind       string
@@ -85,6 +101,7 @@ type ExchangeParams struct {
 	Args       amqp.Table
 }
 
+// QueueParams generalizes amqp queue settings
 type QueueParams struct {
 	Name       string
 	Durable    bool
@@ -94,17 +111,21 @@ type QueueParams struct {
 	Args       amqp.Table
 }
 
+// QualityOfService generalizes amqp qos settings
 type QualityOfService struct {
 	PrefetchCount int
 	PrefetchSize  int
 }
 
+// ConsumerParams generalizes amqp consumer settings
 type ConsumerParams struct {
 	ConsumerName string
 	AutoAck      bool
 	ConsumerArgs amqp.Table
 }
 
+// NewDirectRouterEngine is used for direct message routing as described by amqp0-9-1 protocol.
+// For reference on direct routing see https://www.rabbitmq.com/resources/specs/amqp0-9-1.pdf.
 func NewDirectRouterEngine() RouterEngine {
 	return &directRouterEngine{routingMap: make(map[string][]ControllerFunc)}
 }
@@ -126,6 +147,8 @@ const (
 	hashNode = "#"
 )
 
+// NewTopicRouterEngine is a topic routing mechanism to route messages as described by amqp0-9-1 protocol.
+// For reference on topic routing see https://www.rabbitmq.com/resources/specs/amqp0-9-1.pdf.
 func NewTopicRouterEngine() RouterEngine {
 	return &topicRouterEngine{routingTrieRoot: &topicRouterTrieNode{
 		word:     "",
@@ -134,7 +157,7 @@ func NewTopicRouterEngine() RouterEngine {
 	}}
 }
 
-// topicRouterEngine осуществляет роутинг на основе обхода префиксного дерева, см. https://blog.rabbitmq.com/posts/2010/09/very-fast-and-scalable-topic-routing-part-1
+// topicRouterEngine uses prefix tree as suggested by https://blog.rabbitmq.com/posts/2010/09/very-fast-and-scalable-topic-routing-part-1
 type topicRouterEngine struct {
 	routingTrieRoot *topicRouterTrieNode
 }
@@ -187,7 +210,6 @@ func (e *topicRouterEngine) Route(routingKey string) []ControllerFunc {
 	return result
 }
 
-// dfs реализован согласно https://www.erlang-solutions.com/blog/rabbits-anatomy-understanding-topic-exchanges/
 func (e *topicRouterEngine) dfs(node *topicRouterTrieNode, words []string, result *[]ControllerFunc) {
 	if len(words) == 0 {
 		childHashNode, ok := node.children[hashNode]
