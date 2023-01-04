@@ -1,44 +1,26 @@
-<!-- ABOUT THE PROJECT -->
+<!-- Description -->
 ## About The Project
 
-...
+Wrapper over golang amqp library that simplifies consumer and producer usage with additinal features
 
-
-<!-- GETTING STARTED -->
-## Getting Started
 
 ...
 
-### Installation
+## Installation
 
 ```sh
 go get https://github.com/MashinIvan/rabbitmq
 ```
 
 <!-- USAGE EXAMPLES -->
-### Examples
+## Examples
 
-...
-
-
-<!-- CONTRIBUTING -->
-## Contributing
-
-...
+See [examples](https://github.com/MashinIvan/rabbitmq/tree/main/examples)
 
 
 <!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE.txt` for more information.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-
-<!-- CONTACT -->
-## Contact
-
-Project Link: [https://github.com/MashinIvan/rabbitmq](https://github.com/MashinIvan/rabbitmq)
+Licensed under the [MIT License](https://github.com/MashinIvan/rabbitmq/blob/main/LICENSE)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
