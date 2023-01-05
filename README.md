@@ -1,7 +1,7 @@
 <!-- Description -->
 ## About The Project
 
-Wrapper over golang amqp library that simplifies consumer and producer usage with additinal features inspired by [gin framework](https://github.com/gin-gonic/gin)
+Wrapper over golang amqp library that simplifies consumer and producer usage with additinal features inspired by [gin](https://github.com/gin-gonic/gin)
 
 Key features:
 * Autoreconnect for amqp.Client
